@@ -1,0 +1,9 @@
+fastapi~=0.115.6
+uvicorn
+sqlalchemy~=2.0.37
+psycopg2-binary
+jose~=1.0.0
+passlib[bcrypt]~=1.7.4
+python-multipart
+pydantic~=2.10.5
+python-dotenv~=1.0.1
