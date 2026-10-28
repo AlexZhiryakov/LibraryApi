@@ -3,9 +3,9 @@
 import logging
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, selectinload
 
 from .auth import get_current_admin, get_current_user, get_user_by_username
 from .database import get_db
@@ -99,8 +99,28 @@ def create_new_book(
 
 
 @router.get("/books", response_model=list[BookRead], tags=["books"])
-def list_books(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)) -> list[Book]:
-    return db.query(Book).options(joinedload(Book.authors)).offset(skip).limit(limit).all()
+def list_books(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> list[Book]:
+    # selectinload, а не joinedload: лимит должен ограничивать книги, а не строки связи с авторами.
+    return (
+        db.query(Book)
+        .options(selectinload(Book.authors))
+        .order_by(Book.id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+@router.get("/books/{book_id}", response_model=BookRead, tags=["books"])
+def get_book(book_id: int, db: Session = Depends(get_db)) -> Book:
+    db_book = db.query(Book).options(selectinload(Book.authors)).filter(Book.id == book_id).first()
+    if not db_book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Книга не найдена")
+    return db_book
 
 
 @router.delete("/books/{book_id}", response_model=Message, tags=["books"])
@@ -141,14 +161,31 @@ def create_author(
 
 
 @router.get("/authors", response_model=list[AuthorRead], tags=["authors"])
-def list_authors(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)) -> list[Author]:
-    return db.query(Author).offset(skip).limit(limit).all()
+def list_authors(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> list[Author]:
+    return db.query(Author).order_by(Author.id).offset(skip).limit(limit).all()
+
+
+@router.get("/authors/{author_id}", response_model=AuthorRead, tags=["authors"])
+def get_author(author_id: int, db: Session = Depends(get_db)) -> Author:
+    author = db.query(Author).filter(Author.id == author_id).first()
+    if not author:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Автор не найден")
+    return author
 
 
 # ---------- Пользователи ----------
 @router.get("/users", response_model=list[UserRead], tags=["users"])
 def list_readers(db: Session = Depends(get_db), _admin: User = Depends(get_current_admin)) -> list[User]:
     return db.query(User).filter(User.is_admin.is_(False)).all()
+
+
+@router.get("/users/me", response_model=UserRead, tags=["users"])
+def read_my_info(current_user: User = Depends(get_current_user)) -> User:
+    return current_user
 
 
 @router.put("/users/me", response_model=UserRead, tags=["users"])
@@ -250,12 +287,12 @@ def return_book(
 
 @router.get("/borrows", response_model=list[BorrowRead], tags=["borrows"])
 def list_borrows(
-    skip: int = 0,
-    limit: int = 10,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1, le=100),
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ) -> list[BorrowRecord]:
-    return db.query(BorrowRecord).offset(skip).limit(limit).all()
+    return db.query(BorrowRecord).order_by(BorrowRecord.id).offset(skip).limit(limit).all()
 
 
 @router.get("/borrows/me", response_model=list[BorrowRead], tags=["borrows"])

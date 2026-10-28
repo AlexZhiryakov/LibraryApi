@@ -53,6 +53,26 @@ def test_empty_database_url_and_secret_key_use_defaults(monkeypatch):
     assert settings.secret_key
 
 
+def test_unreachable_postgres_falls_back_to_sqlite(monkeypatch):
+    """Мёртвый PostgreSQL не должен оставлять процесс без базы: сайт поднимается на SQLite."""
+    from app.bootstrap import prepare_database_url
+    from app.config import get_settings
+
+    def _offline(_url: str) -> bool:
+        raise TimeoutError("slow")
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@127.0.0.1:1/library")
+    monkeypatch.setattr("app.bootstrap._probing_enabled", lambda: True)
+    monkeypatch.setattr("app.bootstrap._can_connect", _offline)
+    get_settings.cache_clear()
+    try:
+        prepare_database_url()
+        get_settings.cache_clear()
+        assert get_settings().database_url.startswith("sqlite")
+    finally:
+        get_settings.cache_clear()
+
+
 def test_access_token_expire_minutes_is_read_from_environment(monkeypatch):
     """Непустое значение переменной по-прежнему применяется."""
     monkeypatch.setenv("ACCESS_TOKEN_EXPIRE_MINUTES", "45")

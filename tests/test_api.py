@@ -21,10 +21,20 @@ def test_docs_moved_under_api_prefix(client):
     assert client.get("/docs").status_code == 404
 
 
-def test_root_redirects_to_api_docs(client):
-    response = client.get("/", follow_redirects=False)
-    assert response.status_code in (307, 308)
-    assert response.headers["location"] == "/api/docs"
+def test_root_is_a_home_page(client):
+    """Корень — страница сервиса, а не редирект: хостинг считает ответ живым только при 200."""
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "/api/docs" in response.text
+    assert "Книги" in response.text
+
+
+def test_unknown_html_path_explains_where_docs_are(client):
+    response = client.get("/docs", headers={"Accept": "text/html"})
+    assert response.status_code == 404
+    assert "/api/docs" in response.text
+    assert response.headers["content-type"].startswith("text/html")
 
 
 def test_register_returns_token(client):
@@ -77,6 +87,39 @@ def test_only_admin_can_create_author_and_book(client, admin_headers, reader_hea
     created = client.post("/books", json={"title": "Чистый код", "genre": "Прогр."}, headers=admin_headers)
     assert created.status_code == 201
     assert created.json()["available_copies"] == 0
+
+
+def test_get_book_and_author_by_id(client, admin_headers):
+    author = client.post("/authors", json={"name": "Автор страницы"}, headers=admin_headers)
+    assert author.status_code == 201
+    author_id = author.json()["id"]
+    assert client.get(f"/authors/{author_id}").json()["name"] == "Автор страницы"
+    assert client.get("/authors/999999").status_code == 404
+
+    created = client.post(
+        "/books",
+        json={
+            "title": "Одна книга",
+            "genre": "Проза",
+            "author_ids": [author_id],
+            "available_copies": 1,
+        },
+        headers=admin_headers,
+    )
+    assert created.status_code == 201
+    book_id = created.json()["id"]
+    loaded = client.get(f"/books/{book_id}")
+    assert loaded.status_code == 200
+    assert loaded.json()["authors"][0]["id"] == author_id
+    assert client.get("/books/999999").status_code == 404
+
+
+def test_reader_can_read_own_profile(client, reader_headers):
+    response = client.get("/users/me", headers=reader_headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["username"] == "reader"
+    assert body["is_admin"] is False
 
 
 def test_book_crud_and_date_parsing(client, admin_headers):

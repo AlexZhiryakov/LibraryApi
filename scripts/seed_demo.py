@@ -175,30 +175,26 @@ def _get_or_create_user(db, username: str, password: str, is_admin: bool) -> tup
     return user, True
 
 
-def seed() -> None:
-    """Создаёт демо-данные. Безопасно вызывать повторно (идемпотентно)."""
+def apply_demo_data() -> dict[str, int]:
+    """Создаёт демо-каталог. Пользователей — только если заданы пароли в окружении.
+
+    Идемпотентно: повторный вызов не плодит дубликаты. Пароли в коде не хранятся,
+    поэтому без ``DEMO_ADMIN_PASSWORD`` и ``DEMO_USER_PASSWORD`` появляются
+    только авторы и книги.
+    """
     admin_password = os.getenv("DEMO_ADMIN_PASSWORD")
     user_password = os.getenv("DEMO_USER_PASSWORD")
-    if not admin_password or not user_password:
-        print(
-            "Не заданы переменные окружения DEMO_ADMIN_PASSWORD и/или DEMO_USER_PASSWORD.",
-            file=sys.stderr,
-        )
-        print(
-            "Задайте их перед запуском, например: $env:DEMO_ADMIN_PASSWORD = '<пароль>'",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
 
     db = SessionLocal()
     try:
         created_users = 0
-        for username, password, is_admin in (
-            (ADMIN_USERNAME, admin_password, True),
-            (USER_USERNAME, user_password, False),
-        ):
-            _, created = _get_or_create_user(db, username, password, is_admin)
-            created_users += int(created)
+        if admin_password and user_password:
+            for username, password, is_admin in (
+                (ADMIN_USERNAME, admin_password, True),
+                (USER_USERNAME, user_password, False),
+            ):
+                _, created = _get_or_create_user(db, username, password, is_admin)
+                created_users += int(created)
 
         authors_by_name: dict[str, Author] = {}
         created_authors = 0
@@ -227,14 +223,30 @@ def seed() -> None:
             created_books += 1
 
         db.commit()
-
-        print("Демо-данные готовы.")
-        print(f"  пользователи: создано {created_users} из 2")
-        print(f"  авторы:       создано {created_authors} из {len(AUTHORS)}")
-        print(f"  книги:        создано {created_books} из {len(BOOKS)}")
-        print(f"  админ: {ADMIN_USERNAME}, читатель: {USER_USERNAME} (пароли — из переменных окружения)")
+        return {"users": created_users, "authors": created_authors, "books": created_books}
     finally:
         db.close()
+
+
+def seed() -> None:
+    """Создаёт демо-данные из командной строки. Безопасно вызывать повторно."""
+    if not os.getenv("DEMO_ADMIN_PASSWORD") or not os.getenv("DEMO_USER_PASSWORD"):
+        print(
+            "Не заданы переменные окружения DEMO_ADMIN_PASSWORD и/или DEMO_USER_PASSWORD.",
+            file=sys.stderr,
+        )
+        print(
+            "Задайте их перед запуском, например: $env:DEMO_ADMIN_PASSWORD = '<пароль>'",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    created = apply_demo_data()
+    print("Демо-данные готовы.")
+    print(f"  пользователи: создано {created['users']} из 2")
+    print(f"  авторы:       создано {created['authors']} из {len(AUTHORS)}")
+    print(f"  книги:        создано {created['books']} из {len(BOOKS)}")
+    print(f"  админ: {ADMIN_USERNAME}, читатель: {USER_USERNAME} (пароли — из переменных окружения)")
 
 
 if __name__ == "__main__":

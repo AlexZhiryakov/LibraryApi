@@ -1,5 +1,6 @@
 {
+  "$schema": "https://layero.ru/schema/layero-v2.json",
   "runtime": "python_web",
   "installCommand": "pip install -r requirements.txt",
-  "startCommand": "sh start.sh"
+  "startCommand": "python serve.py"
 }
