@@ -8,9 +8,12 @@ REST API библиотеки на FastAPI: книги, авторы, читат
 
 ## 🔗 Живое демо
 
-<!-- заменить: подставьте реальный адрес сервиса после деплоя на Render -->
-- API: https://ЗАМЕНИТЬ-ПОСЛЕ-ДЕПЛОЯ.onrender.com
-- Документация (Swagger UI): https://ЗАМЕНИТЬ-ПОСЛЕ-ДЕПЛОЯ.onrender.com/docs
+- API: https://libraryapi-main.layero.app
+- Документация (Swagger UI): https://libraryapi-main.layero.app/api/docs
+
+```bash
+curl https://libraryapi-main.layero.app/api/health   # {"status":"ok"}
+```
 
 ## 📖 О проекте
 
@@ -57,6 +60,7 @@ JWT-аутентификация с ролевой моделью (читате�
 | Метод  | Путь                          | Доступ         | Описание                       |
 |--------|-------------------------------|----------------|--------------------------------|
 | GET    | `/health`                     | публичный      | проверка живости сервиса       |
+| GET    | `/api/health`                 | публичный      | то же для хостинга (Layero)    |
 | POST   | `/register`                   | публичный      | регистрация читателя           |
 | POST   | `/token`                      | публичный      | вход, выдача JWT               |
 | GET    | `/books`                      | публичный      | список книг (skip/limit)       |
@@ -72,7 +76,9 @@ JWT-аутентификация с ролевой моделью (читате�
 | GET    | `/borrows`                    | админ          | все выдачи                     |
 | GET    | `/borrows/me`                 | авторизованный | свои выдачи                    |
 
-Интерактивная документация: `/docs` (Swagger UI) и `/redoc`.
+Интерактивная документация: `/api/docs` (Swagger UI) и `/api/redoc`; корень `/`
+редиректит на `/api/docs`. Префикс `/api` нужен потому, что пути `/docs`, `/redoc`
+и `/health` на хостинге Layero перехватывает прослойка платформы.
 
 ## 🔐 Безопасность
 
@@ -107,7 +113,7 @@ python -m venv .venv
 pip install -r requirements.txt
 Copy-Item .env.example .env      # затем отредактируйте .env
 alembic upgrade head             # создать таблицы
-uvicorn app.main:app --reload    # http://127.0.0.1:8000/docs
+uvicorn app.main:app --reload    # http://127.0.0.1:8000/api/docs
 ```
 
 Демо-данные (админ `demo_admin`, читатель `demo_user`, авторы и книги):
@@ -154,7 +160,7 @@ docker compose up --build
 
    Логины: администратор `demo_admin`, читатель `demo_user`.
 
-> Демо: <!-- заменить --> адрес сервиса будет добавлен после деплоя.
+> Демо: https://libraryapi-main.layero.app/api/docs
 
 ## ⚙️ Переменные окружения
 
