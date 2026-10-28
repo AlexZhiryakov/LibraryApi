@@ -16,6 +16,7 @@ ENV/
 # Переменные окружения и секреты
 .env
 .env.*
+.env.layero
 !.env.example
 
 # IDE

@@ -125,6 +125,37 @@ docker compose up --build
 # API: http://localhost:8000  (миграции применяются при старте контейнера)
 ```
 
+## ☁️ Деплой на Layero + Neon
+
+1. **База в Neon.** Зарегистрируйтесь на [neon.tech](https://neon.tech), создайте
+   проект и скопируйте строку подключения вида
+   `postgresql://user:password@host/db?sslmode=require` (Dashboard →
+   **Connection string**). Приложение понимает и вариант `postgres://`.
+2. **Сервис в Layero.** Создайте сервис из репозитория — конфигурация берётся из
+   `layero.json`: установка `pip install -r requirements.txt`, запуск
+   `alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   (миграции применяются автоматически при старте).
+3. **Переменные окружения.** Задайте их в панели Layero (секреты храните только в
+   хостинге; локальный пример — в `.env.layero`, этот файл не коммитится):
+
+   | Переменная            | Назначение                          |
+   |-----------------------|-------------------------------------|
+   | `DATABASE_URL`        | строка подключения из Neon          |
+   | `SECRET_KEY`          | длинная случайная строка для JWT    |
+   | `DEMO_ADMIN_PASSWORD` | пароль `demo_admin` для seed        |
+   | `DEMO_USER_PASSWORD`  | пароль `demo_user` для seed         |
+
+4. **Демо-данные.** После первого деплоя наполните базу книгами и авторами —
+   команда идемпотентна, повторный запуск не создаёт дубликатов:
+
+   ```powershell
+   python -m scripts.seed_demo
+   ```
+
+   Логины: администратор `demo_admin`, читатель `demo_user`.
+
+> Демо: <!-- заменить --> адрес сервиса будет добавлен после деплоя.
+
 ## ⚙️ Переменные окружения
 
 | Переменная                    | Назначение                          | По умолчанию             |
@@ -160,6 +191,7 @@ LibraryApi/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── render.yaml         # Blueprint для деплоя на Render
+├── layero.json         # конфигурация деплоя на Layero
 ├── pyproject.toml      # настройки ruff и pytest
 ├── requirements.txt
 ├── requirements-dev.txt
