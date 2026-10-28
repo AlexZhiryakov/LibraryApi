@@ -6,6 +6,7 @@
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +32,19 @@ class Settings(BaseSettings):
 
     # Время жизни access-токена в минутах.
     access_token_expire_minutes: int = 30
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_postgres_scheme(cls, value: str) -> str:
+        """Приводит схему ``postgres://`` к ``postgresql://``.
+
+        Некоторые хостинги (например, Render) отдают строку подключения в
+        формате ``postgres://``, который SQLAlchemy не понимает. Меняем только
+        префикс, остальную часть строки оставляем как есть.
+        """
+        if value.startswith("postgres://"):
+            return "postgresql://" + value.removeprefix("postgres://")
+        return value
 
 
 @lru_cache
