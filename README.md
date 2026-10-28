@@ -132,9 +132,9 @@ docker compose up --build
    `postgresql://user:password@host/db?sslmode=require` (Dashboard →
    **Connection string**). Приложение понимает и вариант `postgres://`.
 2. **Сервис в Layero.** Создайте сервис из репозитория — конфигурация берётся из
-   `layero.json`: установка `pip install -r requirements.txt`, запуск
-   `alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-   (миграции применяются автоматически при старте).
+   `layero.json`: установка `pip install -r requirements.txt`, запуск `sh start.sh`.
+   Скрипт `start.sh` применяет миграции (`alembic upgrade head`) и поднимает
+   uvicorn на порту из переменной `PORT` (по умолчанию `8000`).
 3. **Переменные окружения.** Задайте их в панели Layero (секреты храните только в
    хостинге; локальный пример — в `.env.layero`, этот файл не коммитится):
 
@@ -168,6 +168,9 @@ docker compose up --build
 | `DEMO_ADMIN_PASSWORD`         | пароль `demo_admin` для seed-скрипта | —                       |
 | `DEMO_USER_PASSWORD`          | пароль `demo_user` для seed-скрипта  | —                       |
 
+Пустые значения переменных окружения игнорируются — берётся значение по умолчанию.
+Это защищает запуск от падений, если переменную в панели хостинга оставили пустой.
+
 ## 📁 Структура проекта
 
 ```
@@ -186,12 +189,14 @@ LibraryApi/
 │   └── seed_demo.py    # идемпотентное наполнение демо-данными
 ├── tests/
 │   ├── conftest.py     # фикстуры, SQLite в памяти
-│   └── test_api.py     # тесты API
+│   ├── test_api.py     # тесты API
+│   └── test_config.py  # тесты настроек (пустые переменные окружения)
 ├── .github/workflows/ci.yml
 ├── Dockerfile
 ├── docker-compose.yml
 ├── render.yaml         # Blueprint для деплоя на Render
 ├── layero.json         # конфигурация деплоя на Layero
+├── start.sh            # запуск на хостинге: миграции + uvicorn на $PORT
 ├── pyproject.toml      # настройки ruff и pytest
 ├── requirements.txt
 ├── requirements-dev.txt
