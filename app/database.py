@@ -1,18 +1,16 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
-import os
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Загружаем переменную окружения
-load_dotenv()
+from .config import get_settings
 
-# Получаем URL базы данных
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("Переменная окружения DATABASE_URL не установлена.")
+settings = get_settings()
 
-engine = create_engine(os.getenv("DATABASE_URL"))
+# Для SQLite нужно отключить проверку потока, для PostgreSQL передаём pool_pre_ping.
+engine_kwargs: dict = {"pool_pre_ping": True}
+if settings.database_url.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(settings.database_url, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

@@ -1,54 +1,61 @@
-from jose import jwt
-from datetime import timedelta, datetime
-from passlib.context import CryptContext
-from sqlalchemy.orm import Session
-from .models import User
-from .schemas import UserCreate
+"""FastAPI-зависимости аутентификации и авторизации."""
+
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from dotenv import load_dotenv
-import os
+from jose import JWTError, jwt
+from sqlalchemy.orm import Session
 
-# Загружаем переменную окружения
-load_dotenv()
+from .config import get_settings
+from .database import get_db
+from .models import User
+from .security import create_access_token, hash_password, verify_password  # noqa: F401
 
-# Получаем URL базы данных
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise ValueError("Переменная окружения SECRET_KEY не установлена.")
+settings = get_settings()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Конфигурация для JWT
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def get_user_by_username(db: Session, username: str) -> User | None:
+    return db.query(User).filter(User.username == username).first()
 
 
-# Создание пользователя
-def create_user(db: Session, user: UserCreate):
-    hashed_password = pwd_context.hash(user.password)
-    db_user = User(username=user.username, hashed_password=hashed_password, is_admin=user.is_admin)
+def create_user(db: Session, username: str, password: str, is_admin: bool = False) -> User:
+    """Создаёт пользователя. Флаг is_admin задаётся только сервером."""
+    db_user = User(
+        username=username,
+        hashed_password=hash_password(password),
+        is_admin=is_admin,
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
 
-# Получение пользователя по имени
-def get_user_by_username(db: Session, username: str):
-    return db.query(User).filter(User.username == username).first()
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Не удалось проверить учётные данные",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        username = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except JWTError as err:
+        raise credentials_exception from err
+
+    user = get_user_by_username(db, username)
+    if user is None:
+        raise credentials_exception
+    return user
 
 
-# Проверка пароля
-def verify_password(plain_password: str, hashed_password: str):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-# Создание токена
-def create_access_token(data: dict, expires_delta: timedelta = None):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Требуются права администратора",
+        )
+    return current_user

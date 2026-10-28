@@ -1,16 +1,16 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Date, Boolean, Table
-from sqlalchemy.orm import relationship
-from .database import Base
-from datetime import datetime
-from passlib.context import CryptContext
+from datetime import date
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String, Table, Text
+from sqlalchemy.orm import relationship
+
+from .database import Base
+from .security import hash_password, verify_password
 
 book_authors = Table(
     "book_authors",
     Base.metadata,
-    Column("book_id", Integer, ForeignKey("books.id")),
-    Column("author_id", Integer, ForeignKey("authors.id"))
+    Column("book_id", Integer, ForeignKey("books.id"), primary_key=True),
+    Column("author_id", Integer, ForeignKey("authors.id"), primary_key=True),
 )
 
 
@@ -18,37 +18,37 @@ class Book(Base):
     __tablename__ = "books"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
+    title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     publication_date = Column(Date, nullable=True)
-    available_copies = Column(Integer, default=0)
-    authors = relationship("Author", secondary="book_authors", back_populates="books")
-    genre = Column(String, nullable=False)
+    available_copies = Column(Integer, nullable=False, default=0)
+    genre = Column(String(100), nullable=False)
+    authors = relationship("Author", secondary=book_authors, back_populates="books")
 
 
 class Author(Base):
     __tablename__ = "authors"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(String(255), nullable=False)
     biography = Column(Text, nullable=True)
     birth_date = Column(Date, nullable=True)
-    books = relationship("Book", secondary="book_authors", back_populates="authors")
+    books = relationship("Book", secondary=book_authors, back_populates="authors")
 
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    is_admin = Column(Boolean, default=False)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    is_admin = Column(Boolean, nullable=False, default=False)
 
-    def set_password(self, password: str):
-        self.hashed_password = pwd_context.hash(password)
+    def set_password(self, password: str) -> None:
+        self.hashed_password = hash_password(password)
 
-    def check_password(self, password: str):
-        return pwd_context.verify(password, self.hashed_password)
+    def check_password(self, password: str) -> bool:
+        return verify_password(password, self.hashed_password)
 
 
 class BorrowRecord(Base):
@@ -57,5 +57,8 @@ class BorrowRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     book_id = Column(Integer, ForeignKey("books.id"), nullable=False)
-    borrow_date = Column(Date, default=datetime.utcnow)
+    borrow_date = Column(Date, nullable=False, default=date.today)
     return_date = Column(Date, nullable=True)
+
+    user = relationship("User")
+    book = relationship("Book")
