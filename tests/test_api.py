@@ -7,9 +7,24 @@ def _book_by_id(client, book_id):
 
 
 def test_health(client):
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    for path in ("/health", "/api/health"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
+
+def test_docs_moved_under_api_prefix(client):
+    """Swagger и OpenAPI живут под /api — корневые пути перехватывает Layero."""
+    assert client.get("/api/docs").status_code == 200
+    assert client.get("/api/redoc").status_code == 200
+    assert client.get("/api/openapi.json").status_code == 200
+    assert client.get("/docs").status_code == 404
+
+
+def test_root_redirects_to_api_docs(client):
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code in (307, 308)
+    assert response.headers["location"] == "/api/docs"
 
 
 def test_register_returns_token(client):
