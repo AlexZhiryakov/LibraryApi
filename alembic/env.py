@@ -23,7 +23,10 @@ from app.database import Base
 config = context.config
 
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Alembic хранит значения в ConfigParser с `%`-интерполяцией, поэтому знаки
+# процента в строке подключения (например, URL-encoded символы в пароле на
+# хостингах вроде Neon/Render) нужно экранировать: `%%` читается обратно как `%`.
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
