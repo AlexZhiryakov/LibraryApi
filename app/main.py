@@ -1,26 +1,34 @@
-from fastapi import FastAPI
-from .crud import router
-from .database import Base, engine
 import logging
+
+from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-# Создаем таблицы
-Base.metadata.create_all(bind=engine)
+from .crud import router
 
-# Инициализация приложения
-app = FastAPI()
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
-# Логирование ошибок валидации
+# Таблицы создаются миграциями Alembic (alembic upgrade head), а не create_all.
+app = FastAPI(
+    title="LibraryApi",
+    version="1.0.0",
+    description="REST API библиотеки: книги, авторы, пользователи и учёт выдачи книг.",
+)
+
+
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
-    logging.error(f"Ошибка валидации: {exc}")
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors(), "body": exc.body.decode("utf-8") if isinstance(exc.body, bytes) else exc.body},
-    )
+async def validation_exception_handler(request, exc: RequestValidationError) -> JSONResponse:
+    logger.warning("Ошибка валидации: %s", exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
-# Подключаем роутер
+
+@app.get("/health", tags=["service"])
+def health() -> dict:
+    return {"status": "ok"}
+
+
 app.include_router(router)
 
 # Запуск: uvicorn app.main:app --reload
+
