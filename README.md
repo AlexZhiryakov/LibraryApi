@@ -1,232 +1,50 @@
 # LibraryApi
 
-REST API библиотеки на FastAPI: книги, авторы, читатели и учёт выдачи книг.
+REST API библиотеки: книги, авторы, читатели и учёт выдачи.
 
 ![CI](https://github.com/AlexZhiryakov/LibraryApi/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)
 
-## 🔗 Живое демо
+## Демо
 
-- API: https://libraryapi-main.layero.app
-- Документация (Swagger UI): https://libraryapi-main.layero.app/api/docs
+- Сайт: https://libraryapi-main.layero.app
+- Документация: https://libraryapi-main.layero.app/api/docs
 
-```bash
-curl https://libraryapi-main.layero.app/api/health   # {"status":"ok"}
-```
+## Стек
 
-## 📖 О проекте
+Python 3.11, FastAPI, SQLAlchemy, PostgreSQL, Alembic, Pydantic, JWT, Docker, pytest.
 
-Пет-проект для портфолио: REST API библиотеки на FastAPI, доведённый до
-прод-структуры — от миграций и тестов до Docker и CI. Реализованы
-JWT-аутентификация с ролевой моделью (читатель и администратор), учёт выдачи и
-возврата книг, а также связь «книга ↔ авторы» (many-to-many). Проект показывает,
-как собрать небольшое, но аккуратное backend-приложение: конфигурация через
-переменные окружения, миграции Alembic, обработка ошибок БД и деплой одной
-командой.
+## Возможности
 
-## 🛠 Стек технологий
+- Регистрация и вход по JWT. Пароли хранятся как bcrypt-хеши.
+- Две роли: читатель и администратор.
+- Книги и авторы, связь «многие ко многим».
+- Выдача и возврат книг, список своих выдач.
 
-- **Python 3.11** — язык проекта.
-- **FastAPI** — веб-фреймворк: маршруты, зависимости, автодокументация.
-- **Uvicorn** — ASGI-сервер для запуска приложения.
-- **SQLAlchemy 2.0** — ORM: модели и запросы к БД.
-- **PostgreSQL** — основная БД; **SQLite** — для локального старта и тестов.
-- **Pydantic 2 + pydantic-settings** — валидация схем и конфигурация из окружения.
-- **python-jose** — подпись и проверка JWT.
-- **passlib + bcrypt** — безопасное хеширование паролей.
-- **Alembic** — миграции схемы БД.
-- **pytest + httpx** — тесты API через TestClient.
-- **ruff** — линтер и сортировка импортов.
-- **Docker + docker compose** — упаковка и локальный запуск с PostgreSQL.
-- **GitHub Actions** — CI: линт и тесты на каждый push.
+Полный список запросов — в Swagger: `/api/docs`.
 
-## 🚀 Функционал
-
-- Регистрация обычного пользователя и вход по JWT (пароли — bcrypt-хеши).
-- Ролевая модель: создание книг, авторов, администраторов и выдача книг доступны
-  только администратору.
-- Книги: создание, карточка, список с пагинацией (`skip`/`limit`), удаление.
-- Авторы: создание и список; связь «книга ↔ авторы» (many-to-many).
-- Пользователи: изменение своего профиля (`PUT /users/me`), список читателей,
-  создание администраторов.
-- Учёт выдачи: выдать книгу читателю, вернуть книгу, списки выдач (свои и все).
-- Контроль доступности: нельзя выдать книгу без свободных экземпляров и нельзя
-  удалить книгу с активными выдачами.
-- Миграции Alembic вместо `create_all`; конфликты БД отдаются как `409`.
-
-## 📡 Эндпоинты
-
-| Метод  | Путь                          | Доступ         | Описание                       |
-|--------|-------------------------------|----------------|--------------------------------|
-| GET    | `/`                           | публичный      | главная страница сервиса       |
-| GET    | `/health`                     | публичный      | проверка живости сервиса       |
-| GET    | `/api/health`                 | публичный      | то же для хостинга (Layero)    |
-| POST   | `/register`                   | публичный      | регистрация читателя           |
-| POST   | `/token`                      | публичный      | вход, выдача JWT               |
-| GET    | `/books`                      | публичный      | список книг (skip/limit)       |
-| GET    | `/books/{book_id}`            | публичный      | одна книга                     |
-| POST   | `/books`                      | админ          | создать книгу                  |
-| DELETE | `/books/{book_id}`            | админ          | удалить книгу                  |
-| GET    | `/authors`                    | публичный      | список авторов                 |
-| GET    | `/authors/{author_id}`        | публичный      | один автор                     |
-| POST   | `/authors`                    | админ          | создать автора                 |
-| GET    | `/users`                      | админ          | список читателей               |
-| GET    | `/users/me`                   | авторизованный | свой профиль                   |
-| PUT    | `/users/me`                   | авторизованный | изменить свои данные           |
-| POST   | `/add_admin`                  | админ          | создать администратора         |
-| POST   | `/borrows`                    | админ          | выдать книгу читателю          |
-| POST   | `/borrows/{borrow_id}/return` | авторизованный | вернуть книгу (админ/владелец) |
-| GET    | `/borrows`                    | админ          | все выдачи                     |
-| GET    | `/borrows/me`                 | авторизованный | свои выдачи                    |
-
-Интерактивная документация: `/api/docs` (Swagger UI) и `/api/redoc`. Корень `/`
-отдаёт главную страницу сервиса со ссылками на документацию и каталог. Префикс
-`/api` нужен потому, что пути `/docs`, `/redoc` и `/health` на хостинге Layero
-перехватывает прослойка платформы: открытие этих адресов даёт Not Found самой
-платформы, а не приложения.
-
-## 🔐 Безопасность
-
-- Пароли хранятся только в виде bcrypt-хешей.
-- Роль `is_admin` не принимается от клиента при регистрации: администраторы
-  создаются лишь действующим админом через `POST /add_admin`.
-- Пишущие эндпоинты книг, авторов и выдач защищены правами администратора;
-  вернуть книгу может администратор или владелец выдачи.
-- Ошибки целостности БД возвращаются как `409` без раскрытия текста исключения.
-- Все секреты (`SECRET_KEY`, `DATABASE_URL`) задаются переменными окружения и
-  не хранятся в коде.
-
-## 🧪 Тесты и качество
-
-- `pytest` — тесты API на SQLite в памяти (внешняя БД не нужна).
-- `ruff check .` — линтер и проверка порядка импортов.
-- CI в GitHub Actions: на каждый push и pull request запускаются линт и тесты.
-
-```powershell
-pip install -r requirements-dev.txt
-ruff check .
-pytest
-```
-
-## ▶️ Быстрый старт
-
-### Локально
+## Запуск
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-Copy-Item .env.example .env      # затем отредактируйте .env
-alembic upgrade head             # создать таблицы
-uvicorn app.main:app --reload    # http://127.0.0.1:8000/api/docs
+Copy-Item .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
-Демо-данные (админ `demo_admin`, читатель `demo_user`, авторы и книги):
+Откройте http://127.0.0.1:8000/api/docs.
+
+Через Docker: `docker compose up --build`, API на http://localhost:8000.
+
+Демо-книги и пользователей можно добавить так:
 
 ```powershell
 $env:DEMO_ADMIN_PASSWORD = "<пароль админа>"
 $env:DEMO_USER_PASSWORD = "<пароль читателя>"
-python -m scripts.seed_demo      # скрипт идемпотентен
+python -m scripts.seed_demo
 ```
 
-### Через Docker Compose
-
-```powershell
-docker compose up --build
-# API: http://localhost:8000  (миграции применяются при старте контейнера)
-```
-
-## ☁️ Деплой на Layero + Neon
-
-1. **База в Neon.** Зарегистрируйтесь на [neon.tech](https://neon.tech), создайте
-   проект и скопируйте строку подключения вида
-   `postgresql://user:password@host/db?sslmode=require` (Dashboard →
-   **Connection string**). Приложение понимает и вариант `postgres://`.
-2. **Сервис в Layero.** Создайте сервис из репозитория — конфигурация берётся из
-   `layero.json`: установка `pip install -r requirements.txt`, запуск
-   `python serve.py`. Процесс слушает порт из переменной `PORT`, применяет
-   миграции и наполняет каталог демо-книгами. Если PostgreSQL не отвечает за
-   несколько секунд, сервис поднимается на локальной SQLite, чтобы адрес не
-   зависал на экране «запускается» и не отдавал Not Found. Секреты храните
-   только в панели хостинга.
-3. **Переменные окружения.** Задайте их в панели Layero. Образец имён — в
-   `.env.example`; сам файл `.env` в репозиторий не попадает.
-
-   | Переменная            | Назначение                          |
-   |-----------------------|-------------------------------------|
-   | `DATABASE_URL`        | строка подключения из Neon          |
-   | `SECRET_KEY`          | длинная случайная строка для JWT    |
-   | `DEMO_ADMIN_PASSWORD` | пароль `demo_admin` для seed        |
-   | `DEMO_USER_PASSWORD`  | пароль `demo_user` для seed         |
-
-4. **Демо-данные.** При каждом старте сервис сам добавляет авторов и книги.
-   Повторный запуск не создаёт дубликатов. Учётные записи `demo_admin` и
-   `demo_user` появляются, только если в панели заданы `DEMO_ADMIN_PASSWORD` и
-   `DEMO_USER_PASSWORD`. Те же переменные нужны, чтобы наполнить базу вручную:
-
-   ```powershell
-   python -m scripts.seed_demo
-   ```
-
-   Логины: администратор `demo_admin`, читатель `demo_user`.
-
-> Демо: https://libraryapi-main.layero.app/api/docs
-
-## ⚙️ Переменные окружения
-
-| Переменная                    | Назначение                          | По умолчанию             |
-|-------------------------------|-------------------------------------|--------------------------|
-| `DATABASE_URL`                | строка подключения к БД             | `sqlite:///./library.db` |
-| `SECRET_KEY`                  | ключ подписи JWT (сменить в проде)  | небезопасный dev-ключ    |
-| `ALGORITHM`                   | алгоритм подписи JWT                | `HS256`                  |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | срок жизни access-токена (мин)      | `30`                     |
-| `PORT`                        | порт uvicorn внутри контейнера      | `8000`                   |
-| `DEMO_ADMIN_PASSWORD`         | пароль `demo_admin` для seed-скрипта | —                       |
-| `DEMO_USER_PASSWORD`          | пароль `demo_user` для seed-скрипта  | —                       |
-
-Пустые значения переменных окружения игнорируются — берётся значение по умолчанию.
-Это защищает запуск от падений, если переменную в панели хостинга оставили пустой.
-
-## 📁 Структура проекта
-
-```
-LibraryApi/
-├── app/
-│   ├── main.py         # FastAPI, главная страница, обработчик ошибок, /health
-│   ├── pages.py        # HTML главной и страницы «не найдено»
-│   ├── bootstrap.py    # проверка PostgreSQL и запасной SQLite
-│   ├── config.py       # настройки из окружения (pydantic-settings)
-│   ├── database.py     # движок, сессия, get_db
-│   ├── models.py       # ORM-модели (Book, Author, User, BorrowRecord)
-│   ├── schemas.py      # Pydantic-схемы запросов и ответов
-│   ├── security.py     # bcrypt и JWT
-│   ├── auth.py         # зависимости get_current_user / get_current_admin
-│   └── crud.py         # HTTP-эндпоинты
-├── alembic/            # миграции
-├── scripts/
-│   └── seed_demo.py    # идемпотентное наполнение демо-данными
-├── tests/
-│   ├── conftest.py     # фикстуры, SQLite в памяти
-│   ├── test_api.py     # тесты API
-│   └── test_config.py  # тесты настроек (пустые переменные окружения)
-├── .github/workflows/ci.yml
-├── Dockerfile
-├── docker-compose.yml
-├── render.yaml         # Blueprint для деплоя на Render
-├── layero.json         # конфигурация деплоя на Layero
-├── serve.py            # запуск: миграции в процессе и uvicorn на $PORT
-├── start.sh            # совместимый вызов serve.py для старых настроек хостинга
-├── runtime.txt         # Python 3.11 на Layero
-├── pyproject.toml      # настройки ruff и pytest
-├── requirements.txt
-├── requirements-dev.txt
-└── .env.example
-```
-
-## 🧭 Что можно улучшить дальше
-
-- Добавить измерение покрытия тестами (`pytest-cov`) и больше негативных сценариев.
-- Реализовать refresh-токены и отзыв JWT.
-- Добавить поиск и фильтры по книгам, пагинацию для авторов и выдач.
-- Проверять миграции в CI (`alembic check`) и деплоить по тегу.
+Логины: `demo_admin` и `demo_user`.
